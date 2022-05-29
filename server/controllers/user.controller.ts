@@ -2,9 +2,10 @@ import { SHA256 } from "crypto-js";
 import { NextFunction, Request, Response } from "express";
 import mongoose from "mongoose";
 import User from "../schemas/userSchema";
+import { generateJwt } from "../utils/generateJwt";
 
 // @desc   user registration
-// @route  GET /api/user/registration
+// @route  POST /api/user/registration
 // @access Public
 const userRegistration = async (
   request: Request,
@@ -41,4 +42,48 @@ const userRegistration = async (
   }
 };
 
-export { userRegistration };
+// @desc   user authorization
+// @route  POST /api/user/auth
+// @access Public
+const authUser = async (
+  request: Request,
+  response: Response,
+  next: NextFunction
+) => {
+  try {
+    const { password, email } = request.body;
+
+    const cryptedPass = password ? SHA256(password).toString() : "";
+
+    const user = await User.findOne({
+      email,
+      password: cryptedPass,
+    });
+
+    if (!user) {
+      return response.status(400).json({
+        message: `User not found or wrong password/email`,
+      });
+    }
+
+    const data: any = {
+      id: user._id,
+      fullName: user.fullName,
+      email: user.email,
+      isAdmin: user.isAdmin,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    };
+
+    data.token = generateJwt(data);
+
+    return response.json(data);
+  } catch (error: any) {
+    response.status(400).json({
+      message: error.message,
+    });
+    next(`Error: ${error.message}`);
+  }
+};
+
+export { userRegistration, authUser };
