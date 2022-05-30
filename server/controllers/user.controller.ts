@@ -1,6 +1,7 @@
 import { SHA256 } from "crypto-js";
 import { NextFunction, Request, Response } from "express";
 import mongoose from "mongoose";
+import { UserRequestModel } from "../models/UserModel";
 import User from "../schemas/userSchema";
 import { generateJwt } from "../utils/generateJwt";
 
@@ -86,4 +87,50 @@ const authUser = async (
   }
 };
 
-export { userRegistration, authUser };
+// @desc   update user
+// @route  POST /api/user/update
+// @access Public
+const updateUser = async (
+  request: UserRequestModel,
+  response: Response,
+  next: NextFunction
+) => {
+  try {
+    const { password, fullName, isAdmin } = request.body;
+
+    const { id } = request.user;
+
+    if (!id) {
+      return response.status(400).json({
+        message: `No token`,
+      });
+    }
+
+    const cryptedPass = password ? SHA256(password).toString() : "";
+
+    const user = await User.findById(id);
+
+    if (!user) {
+      return response.status(400).json({
+        message: `User not found`,
+      });
+    }
+
+    await user.updateOne({
+      fullName: fullName,
+      isAdmin: isAdmin,
+      password: cryptedPass,
+    });
+
+    return response.json({
+      message: "User updated succesfully",
+    });
+  } catch (error: any) {
+    response.status(400).json({
+      message: error.message,
+    });
+    next(`Error: ${error.message}`);
+  }
+};
+
+export { userRegistration, authUser, updateUser };
